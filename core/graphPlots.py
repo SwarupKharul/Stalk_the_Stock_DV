@@ -1,63 +1,54 @@
 import pandas as pd
-from plotly.offline import plot
+
+# from plotly.offline import plot
 import plotly.graph_objects as go
 import plotly.express as px
-import plotly.figure_factory as ff
-from plotly.subplots import make_subplots
-from pymongo import MongoClient
-from pandas_datareader import data as pdr
+
+# import plotly.figure_factory as ff
+# from plotly.subplots import make_subplots
+# from pymongo import MongoClient
+# from pandas_datareader import data as pdr
 import datetime
 import calendar
-import urllib
+
+# import urllib
+
+print("inside load_data 52week....")
+data_realtime = pd.read_csv("data/dump_52wk.csv")
+
+print("inside load_data....")
+data_cash_market = pd.read_csv("data/cash_market.csv", index_col=False)
+data_cash_market["TIMESTAMP"] = pd.to_datetime(data_cash_market["TIMESTAMP"])
 
 
-def get_client():
-    return MongoClient(
-        "mongodb+srv://happyadmin:"
-        + urllib.parse.quote_plus("Happy@123")
-        + "@cluster0.eyb8f.mongodb.net/happyinvesting?retryWrites=true&w=majority&authSource=admin"
-    )
+print("inside load_data sector....")
+data_sector = pd.read_csv("data/cash_market.csv", index_col=False)
+data_sector["TIMESTAMP"] = pd.to_datetime(data_sector["TIMESTAMP"])
 
 
 def load_data_realtime(collection, symbol):
-    print("inside load_data 52week....")
-    # load data from csv
-    data = pd.read_csv("data/dump_52wk.csv")
     # filter data with symbol
-    data = data[data["SYMBOL"] == symbol]
-    # data = pd.DataFrame(list(db["dump_52wk"].find({"SYMBOL": symbol})))
+    data = data_realtime[data_realtime["SYMBOL"] == symbol]
     return data
 
 
 def load_data(collection, symbol, today, yesterday):
-    print("inside load_data....")
     today = datetime.datetime(today.year, today.month, today.day)
     yesterday = datetime.datetime(yesterday.year, yesterday.month, yesterday.day)
-    # client = get_client()
-    # db = client["happyinvesting"]
-    data = pd.read_csv("data/cash_market.csv", index_col=False)
-    data["TIMESTAMP"] = pd.to_datetime(data["TIMESTAMP"])
-    data = data[
-        (data["TIMESTAMP"] >= str(yesterday))
-        & (data["TIMESTAMP"] <= str(today))
-        & (data["SYMBOL"] == symbol)
+    data = data_cash_market[
+        (data_cash_market["TIMESTAMP"] >= str(yesterday))
+        & (data_cash_market["TIMESTAMP"] <= str(today))
+        & (data_cash_market["SYMBOL"] == symbol)
     ]
     return data
 
 
 def load_sector_data(collection, today, yesterday):
-    print("inside load_data sector....")
     today = datetime.datetime(today.year, today.month, today.day)
     yesterday = datetime.datetime(yesterday.year, yesterday.month, yesterday.day)
-    # client = get_client()
-    # db = client["happyinvesting"]
-
-    data = pd.read_csv("data/cash_market.csv", index_col=False)
-    # for time in data["TIMESTAMP"]:
-    #     time = datetime.datetime.fromisoformat(time[:-1])
-    data["TIMESTAMP"] = pd.to_datetime(data["TIMESTAMP"])
-    data = data[
-        (data["TIMESTAMP"] >= str(yesterday)) & (data["TIMESTAMP"] <= str(today))
+    data = data_sector[
+        (data_sector["TIMESTAMP"] >= str(yesterday))
+        & (data_sector["TIMESTAMP"] <= str(today))
     ]
     return data
 
@@ -93,6 +84,7 @@ def Get_week_num(Share_Data):
 
 
 # function to get Quarter of a month
+# *******************************
 def Get_Quarter_num(Share_Data):
     Quarter = []
     for d in Share_Data["TIMESTAMP"]:
@@ -114,9 +106,9 @@ def get_previous_open(data):
 
 
 def get_nifty(collection):
-    client = get_client()
-    db = client["happyinvesting"]
-    nifty = pd.DataFrame(list(db[collection].find({"SYMBOL": "NIFTY 50"})))
+    nifty = data_cash_market[data_cash_market["SYMBOL"] == "NIFTY 50"]
+    nifty["TIMESTAMP"] = pd.to_datetime(nifty["TIMESTAMP"], utc=True)
+    # nifty = pd.DataFrame(list(db[collection].find({"SYMBOL": "NIFTY 50"})))
     nifty = nifty.loc[:, ["CLOSE", "TIMESTAMP"]]
     nifty = nifty.rename(columns={"CLOSE": "NIFTY"})
     nifty = nifty.sort_values(by="TIMESTAMP")
@@ -329,11 +321,10 @@ def Cash_process_data(start_date, end_date, symbol, cash_collection):
 
 
 def corr_with_nifty(collection, nifty, symbol):
-    client = get_client()
-    db = client["happyinvesting"]
-    data = pd.DataFrame(list(db[collection].find({"SYMBOL": symbol})))
+    data = data_cash_market[data_cash_market["SYMBOL"] == symbol]
     data = data.loc[:, ["CLOSE", "TIMESTAMP"]]
     data = data.rename(columns={"CLOSE": symbol})
+    data["TIMESTAMP"] = pd.to_datetime(data["TIMESTAMP"], utc=True)
     data = data.sort_values(by="TIMESTAMP")
     corr_data = pd.DataFrame()
     corr_data = pd.merge(nifty, data, how="inner", on="TIMESTAMP")
@@ -345,6 +336,7 @@ def df_to_plotly(df):
     return {"z": df.values.tolist(), "x": df.columns.tolist(), "y": df.index.tolist()}
 
 
+# Detailed Analysis
 def generate_analysis1(ticker):
     end_date = datetime.datetime.today()
     start_date = datetime.datetime.now() - datetime.timedelta(days=5 * 365)
@@ -420,7 +412,7 @@ def generate_analysis1(ticker):
         )
     )
     plotly_figure3.update_layout(
-        title="% Change Close",
+        title="% Change Closing Price",
         xaxis_title="Time Period",
         yaxis_title="% Change",
         font=dict(family="sans serif, monospace", size=15, color="RebeccaPurple"),
@@ -444,7 +436,7 @@ def generate_analysis1(ticker):
         )
     )
     plotly_figure4.update_layout(
-        title="% Change Open",
+        title="% Change Opening Price",
         xaxis_title="Time Period",
         yaxis_title="% Change",
         font=dict(family="sans serif, monospace", size=15, color="RebeccaPurple"),
@@ -468,7 +460,7 @@ def generate_analysis1(ticker):
         )
     )
     plotly_figure5.update_layout(
-        title="% Change Daily (Chaal)",
+        title="% Change Daily",
         xaxis_title="% Change Span",
         yaxis_title="No of Times/Frequency",
         font=dict(family="sans serif, monospace", size=15, color="RebeccaPurple"),
@@ -521,7 +513,7 @@ def generate_analysis1(ticker):
         )
     )
     plotly_figure6.update_layout(
-        title="Continuous_%change_close",
+        title="Continuous %change close",
         xaxis_title="X Axis Title",
         yaxis_title="Y Axis Title",
         font=dict(family="sans serif, monospace", size=15, color="RebeccaPurple"),
@@ -587,9 +579,9 @@ def generate_analysis1(ticker):
         )
     )
     fig.update_layout(
-        title="%Change_Closing_Price- Monthly",
-        xaxis_title="X Axis Title",
-        yaxis_title="Y Axis Title",
+        title="%Change Closing Price- Monthly",
+        xaxis_title="Months",
+        yaxis_title="% Change Closing Price",
         font=dict(family="sans serif, monospace", size=15, color="RebeccaPurple"),
     )
 
@@ -662,7 +654,9 @@ def sector_monthly_data(Share_Data, symbol):
         Table_Month, columns=["Year", "Months", "Symbol", "%Change_Closing_Price"]
     )
     Close_Month_Table = Close_Month_Table.sort_values(by=["Months"], ascending=True)
-    #    Close_Month_Table['Months'] = Close_Month_Table['Months'].apply(lambda x: calendar.month_abbr[x])
+    Close_Month_Table["Months"] = Close_Month_Table["Months"].apply(
+        lambda x: calendar.month_abbr[x]
+    )
     return Close_Month_Table
 
 
@@ -687,6 +681,7 @@ def sector_wise_monthly_returns(data, sec):
     return new_data
 
 
+# Sectorwise Analysis
 def generate_analysis2(sec):
     end_date = datetime.datetime.today()
     start_date = datetime.datetime.now() - datetime.timedelta(days=5 * 365)
@@ -729,7 +724,7 @@ def generate_analysis2(sec):
     )
 
     monthly_df = sector_wise_monthly_returns(sector, sec)
-    year_v = monthly_df["Year"].unique()
+    # year_v = monthly_df["Year"].unique()
     year_d = 2021
     final_years = monthly_df[monthly_df["Year"] == year_d]
     pivot_table = final_years.pivot(

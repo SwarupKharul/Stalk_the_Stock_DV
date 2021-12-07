@@ -1,18 +1,13 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.views.decorators.cache import cache_page
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-from django.contrib.auth.models import User
-from django.db import IntegrityError
-from django.contrib.auth import login, logout, authenticate
-from django.contrib.auth.decorators import login_required
-from django.utils import timezone
+from django.shortcuts import render, redirect
+
 from plotly.offline import plot
-from django.http import JsonResponse
+
 import plotly.graph_objects as go
-import plotly.express as px
+
 from plotly.subplots import make_subplots
 import yfinance as yf
-import json, os
+import json
+import os
 import pandas as pd
 from pandas_datareader import data as pdr
 from django.conf import settings
@@ -25,7 +20,6 @@ from .graphPlots import (
     generate_analysis2,
 )
 import logging
-import adal
 from .util import get_settings
 
 
@@ -39,91 +33,6 @@ log.debug("Env vars: \n" + str(os.getenv))
 # landing page
 def home(request):
     return render(request, "core/home.html", {"date": date})
-
-
-# signup user
-def signupuser(request):
-    if request.method == "GET":
-        return render(
-            request, "core/signupuser.html", {"form": UserCreationForm(), "date": date}
-        )
-    else:
-        # Create a new user
-        if request.POST["password1"] == request.POST["password2"]:
-            try:
-                email = request.POST["email"].lower()
-                r = User.objects.filter(email=email)
-                if r.count():
-                    return render(
-                        request,
-                        "core/signupuser.html",
-                        {"error": "Email already exists"},
-                    )
-                else:
-                    user = User.objects.create_user(
-                        request.POST["username"],
-                        password=request.POST["password1"],
-                        email=request.POST["email"],
-                    )
-                    user.save()
-                    login(request, user)
-                    return redirect("stockdata")
-            except IntegrityError:
-                return render(
-                    request,
-                    "core/signupuser.html",
-                    {
-                        "error": "This username has already been taken. Please choose a new Username",
-                        "date": date,
-                    },
-                )
-            except ValueError:
-                return render(
-                    request,
-                    "core/signupuser.html",
-                    {"error": "Please enter valid username", "date": date},
-                )
-        else:
-            # tell the user the password didn't match
-            return render(
-                request,
-                "core/signupuser.html",
-                {"error": "Passwords did not match", "date": date},
-            )
-
-
-# login user
-def loginuser(request):
-    if request.method == "GET":
-        return render(
-            request, "core/loginuser.html", {"form": AuthenticationForm(), "date": date}
-        )
-    else:
-        user = authenticate(
-            request,
-            username=request.POST["username"],
-            password=request.POST["password"],
-        )
-        if user is None:
-            return render(
-                request,
-                "core/loginuser.html",
-                {
-                    "form": AuthenticationForm(),
-                    "error": "User password did not match",
-                    "date": date,
-                },
-            )
-        else:
-            login(request, user)
-            return redirect("stockdata")
-
-
-# logout user
-def logoutuser(request):
-    if request.method == "POST":
-        logout(request)
-        return redirect("home")
 
 
 # realtime stockdata table
@@ -147,7 +56,7 @@ def stockdata(request):
     data.reset_index(drop=True, inplace=True)
     try:
         data = data.drop(1)
-    except:
+    except Exception as e:
         pass
     data = data.stack()
     reset_df = data.reset_index()
@@ -206,7 +115,6 @@ def graphs(request, ticker):
             high=data["High"],
             low=data["Low"],
             close=data["Close"],
-            name="OHLC",
         ),
         row=1,
         col=1,
@@ -219,32 +127,9 @@ def graphs(request, ticker):
     fig.update_layout(
         transition_duration=2000,
         autosize=True,
-        title="The Great Recession",
+        title="Candlestick Graph",
         yaxis_title=ticker + " Stock",
         xaxis_rangeslider_visible=False,
-        updatemenus=[
-            dict(
-                buttons=list(
-                    [
-                        dict(
-                            args=["type", "candlestick"],
-                            label="Candlestick",
-                            method="restyle",
-                        ),
-                        dict(
-                            args=["type", "scatter"], label="scatter", method="restyle"
-                        ),
-                    ]
-                ),
-                # direction="down",
-                # pad={"r": 10, "t": 10},
-                # showactive=True,
-                # x=0.03,
-                # xanchor="right",
-                # y=1.3,
-                # yanchor="bottom",
-            ),
-        ],
     )
 
     plot_div = plot(fig, output_type="div")

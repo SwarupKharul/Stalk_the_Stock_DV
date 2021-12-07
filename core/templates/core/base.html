@@ -49,7 +49,7 @@
 		>
 			<!-- <div class="container"> -->
 			<a class="navbar-brand ml-2" href="{% url 'home' %}">
-				<h3>Stalk the Stock</h3>
+				<h3>Bots.py</h3>
 			</a>
 			<button
 				class="navbar-toggler"
@@ -162,41 +162,6 @@
 							>
 							<a href="{% url 'analysis2' 'PAPER' %}" class="dropdown-item"
 								>PAPER</a
-							>
-						</div>
-					</li>
-					<li class="nav-item dropdown border rounded mx-2">
-						<a
-							class="nav-link dropdown-toggle"
-							href="#"
-							id="navbarDropdown"
-							role="button"
-							data-toggle="dropdown"
-							aria-haspopup="false"
-							aria-expanded="true"
-						>
-							Hello User
-						</a>
-						<div
-							class="dropdown-menu dropdown-menu-right"
-							aria-labelledby="navbarDropdown"
-						>
-							<a
-								href="#"
-								onclick="$('#signOutBtn').click()"
-								class="dropdown-item"
-								>Logout</a
-							>
-							<form
-								style="display: none"
-								method="POST"
-								action="{% url 'logoutuser' %}"
-							>
-								{% csrf_token %}
-								<button id="signOutBtn" type="submit">Logout</button>
-							</form>
-							<a href="{% url 'reset_password' %}" class="dropdown-item"
-								>Change Password</a
 							>
 						</div>
 					</li>
